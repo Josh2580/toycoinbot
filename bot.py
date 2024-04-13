@@ -10,7 +10,7 @@ import logging
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.constants import ParseMode
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, CallbackContext
 import requests
 
   
@@ -25,6 +25,21 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
+
+def generate_referral_link(bot_username, user_id):
+    return f"https://t.me/{bot_username}?start={user_id}"
+
+
+async def share_referral(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+
+    referral_link = generate_referral_link('Toycoin_bot', user_id)
+    await update.message.reply_text(f"Share this link with your friends: {referral_link}")
+
+
+
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends a message with three inline buttons attached."""
 
@@ -32,6 +47,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     # username = user.first_name if user.first_name else user.username or "there"
     username = user.username if user.username else user.first_name  or "there"
+
+
+    ref_id = context.args[0] if context.args else None
+    if ref_id:
+        referrer_url = f'https://toyback.onrender.com/telegram/all/{ref_id}/'
+        referrer_response = requests.get(referrer_url)
+        referrer_data = referrer_response.json()
+        referrer = referrer_data["id"]
+    else:
+        referrer = None
+
+    
+
+
+
 
     # Create or update the user in the database
 
@@ -42,9 +72,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         'full_name': user.full_name,
         'telegram_id': user.id,
         'language_code': user.language_code,  
+        'referrer':referrer
     }
     
     get_url = f'https://toyback.onrender.com/telegram/all/{user.id}/'
+    
     url = f'https://toyback.onrender.com/telegram/all/'
     
 
@@ -96,7 +128,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await context.bot.send_message(chat_id=update.effective_chat.id, 
                                    text="Please choose an option:", 
                                    reply_markup=reply_markup)
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Pls Click start again")
+            # await context.bot.send_message(chat_id=update.effective_chat.id, text="Pls Click start again")
     except requests.exceptions.RequestException as e:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred has occured, pls reload the bot")
         # print(e)
@@ -126,6 +158,8 @@ def main() -> None:
     TOKEN = '7158898737:AAGLq9zyV15zJcA7Wzlvp5M2u4YykUQKVs8'
     print("Running Main")
     application = Application.builder().token(TOKEN).build()
+
+    application.add_handler(CommandHandler("referral", share_referral))
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
