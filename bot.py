@@ -55,6 +55,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         referrer_response = requests.get(referrer_url)
         referrer_data = referrer_response.json()
         referrer = referrer_data["id"]
+        previous_data = requests.get(f'https://toyback.onrender.com/toycoin/{ref_id}')
+        json_data = previous_data.json()
+        print(json_data)
+        if previous_data:
+            response = requests.patch(f'https://toyback.onrender.com/toycoin/{ref_id}', json={"quantity_mined":float(json_data["quantity_mined"]) + 666.00})
+            print(response)
     else:
         referrer = None
 
