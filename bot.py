@@ -100,7 +100,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # ],
         [
             # Replace 'https://your_mini_app_url.com' with the actual URL of your Mini App
-            InlineKeyboardButton("Open Mini App", web_app=WebAppInfo(url=f"https://toycoin.netlify.app/home/{user.id}")),
+            InlineKeyboardButton("MINE TOY", web_app=WebAppInfo(url=f"https://toycoin.netlify.app/home/{user.id}")),
         ],
     ]
 
@@ -117,7 +117,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                text=f"{welcome_back_message}\n\n{welcome_back_description}")
             
             await context.bot.send_message(chat_id=update.effective_chat.id, 
-                                #    text="Please choose an option:", 
+                                   text="Continue by clicking on MINE TOY", 
                                    reply_markup=reply_markup)
         elif response.status_code == 404: 
             new_response = requests.post(url, json=data)
