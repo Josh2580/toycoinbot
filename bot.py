@@ -94,10 +94,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # print(f"front_response: {front_response}") 
 
     keyboard = [
-        [
-            InlineKeyboardButton("Option 1", callback_data="1"),
-            InlineKeyboardButton("Option 2", callback_data="2"),
-        ],
+        # [
+        #     InlineKeyboardButton("Option 1", callback_data="1"),
+        #     InlineKeyboardButton("Option 2", callback_data="2"),
+        # ],
         [
             # Replace 'https://your_mini_app_url.com' with the actual URL of your Mini App
             InlineKeyboardButton("Open Mini App", web_app=WebAppInfo(url=f"https://toycoin.netlify.app/home/{user.id}")),
