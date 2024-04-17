@@ -117,7 +117,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                text=f"{welcome_back_message}\n\n{welcome_back_description}")
             
             await context.bot.send_message(chat_id=update.effective_chat.id, 
-                                   text="Please choose an option:", 
+                                #    text="Please choose an option:", 
                                    reply_markup=reply_markup)
         elif response.status_code == 404: 
             new_response = requests.post(url, json=data)
