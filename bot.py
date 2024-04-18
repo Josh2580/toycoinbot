@@ -63,7 +63,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             refdata={
                 'id': json_data['id'],
                 'name': json_data['name'],
-                'quantity_mined': float(json_data['quantity_mined']) + 666.00,
+                'quantity_mined': float(json_data['quantity_mined']) + 1000.00,
                 'time_clicked': json_data['time_clicked'],
                 'first_click': json_data['first_click'],
                 'date_joined': json_data['date_joined'],
