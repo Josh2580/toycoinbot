@@ -51,16 +51,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     ref_id = context.args[0] if context.args else None
     if ref_id:
-        referrer_url = f'https://toyback.onrender.com/telegram/all/{ref_id}/'
-        referrer_response = requests.get(referrer_url)
-        referrer_data = referrer_response.json()
-        referrer = referrer_data["id"]
-        previous_data = requests.get(f'https://toyback.onrender.com/toycoin/{ref_id}')
-        json_data = previous_data.json()
-        print(json_data)
-        if previous_data:
-            response = requests.patch(f'https://toyback.onrender.com/toycoin/{ref_id}', json={"quantity_mined":float(json_data["quantity_mined"]) + 666.00})
-            print(response)
+        try:
+            referrer_url = f'https://toyback.onrender.com/telegram/all/{ref_id}/'
+            referrer_response = requests.get(referrer_url)
+            referrer_data = referrer_response.json()
+            referrer = referrer_data["id"]
+            previous_data = requests.get(f'https://toyback.onrender.com/toycoin/{ref_id}')
+            json_data = previous_data.json()
+            print(f"json_data: {json_data['quantity_mined']}")
+            
+            refdata={
+                'id': json_data['id'],
+                'name': json_data['name'],
+                'quantity_mined': float(json_data['quantity_mined']) + 666.00,
+                'time_clicked': json_data['time_clicked'],
+                'first_click': json_data['first_click'],
+                'date_joined': json_data['date_joined'],
+                'mineral_extracted': json_data['mineral_extracted'],
+                'launch_date': json_data['launch_date'],
+                'user': json_data['user']
+            }
+            
+            response = requests.patch(f'https://toyback.onrender.com/toycoin/{ref_id}/', json=refdata)
+            response.raise_for_status()
+            print(f'response data: {response.json()}')
+            if response.status_code == 200:
+                print(f'response data: {response.json()}')
+            else:
+                print(f'Error: Received status code {response.status_code}')
+        except requests.exceptions.HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')  # HTTP error response
+        except requests.exceptions.RequestException as req_err:
+            print(f'Request exception: {req_err}')  # Ambiguous network error (e.g., DNS fail, refused connection)
+        except ValueError as json_err:
+            print(f'JSON error: {json_err}')  # JSON decoding failed
     else:
         referrer = None
 
@@ -172,7 +196,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
 
     # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    application.run_polling(allowed_updates=Update.ALL_TYPES, timeout=30)  # Timeout set to 30 seconds
     print("working")
 
 
