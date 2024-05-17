@@ -11,8 +11,8 @@ from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, CallbackContext, MessageHandler, filters
-
 import requests
+import aiohttp
 
   
 
@@ -38,134 +38,98 @@ async def share_referral(update: Update, context: CallbackContext):
     await update.message.reply_text(f"Share this link with your friends: {referral_link}")
 
 
-
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Sends a message with three inline buttons attached."""
-
-    # Extract the user's first name. You can also use user.full_name or user.username
     user = update.effective_user
-    # username = user.first_name if user.first_name else user.username or "there"
-    username = user.username if user.username else user.first_name  or "there"
+    username = user.username if user.username else user.first_name or "there"
 
-
-    ref_id = context.args[0] if context.args else None
-    if ref_id:
-        try:
-            referrer_url = f'https://toyback.onrender.com/telegram/all/{ref_id}/'
-            referrer_response = requests.get(referrer_url)
-            referrer_data = referrer_response.json()
-            referrer = referrer_data["id"]
-            previous_data = requests.get(f'https://toyback.onrender.com/toycoin/{ref_id}')
-            json_data = previous_data.json()
-            print(f"json_data: {json_data['quantity_mined']}")
-            
-            refdata={
-                'id': json_data['id'],
-                'name': json_data['name'],
-                'quantity_mined': float(json_data['quantity_mined']) + 1000.00,
-                'time_clicked': json_data['time_clicked'],
-                'first_click': json_data['first_click'],
-                'date_joined': json_data['date_joined'],
-                'mineral_extracted': json_data['mineral_extracted'],
-                'launch_date': json_data['launch_date'],
-                'user': json_data['user']
-            }
-            
-            response = requests.patch(f'https://toyback.onrender.com/toycoin/{ref_id}/', json=refdata)
-            response.raise_for_status()
-            print(f'response data: {response.json()}')
-            if response.status_code == 200:
-                print(f'response data: {response.json()}')
-            else:
-                print(f'Error: Received status code {response.status_code}')
-        except requests.exceptions.HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # HTTP error response
-        except requests.exceptions.RequestException as req_err:
-            print(f'Request exception: {req_err}')  # Ambiguous network error (e.g., DNS fail, refused connection)
-        except ValueError as json_err:
-            print(f'JSON error: {json_err}')  # JSON decoding failed
-    else:
-        referrer = None
-
-    
-
-
-
-
-    # Create or update the user in the database
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    data={
+    ref_id = context.args[0] if context.args else None
+    referrer = None
+
+    if ref_id:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'https://toyback.onrender.com/telegram/all/{ref_id}/') as response:
+                    referrer_data = await response.json()
+                    referrer = referrer_data["id"]
+
+                async with session.get(f'https://toyback.onrender.com/toycoin/{ref_id}') as response:
+                    json_data = await response.json()
+                    refdata = {
+                        'id': json_data['id'],
+                        'name': json_data['name'],
+                        'quantity_mined': float(json_data['quantity_mined']) + 1000.00,
+                        'time_clicked': json_data['time_clicked'],
+                        'first_click': json_data['first_click'],
+                        'date_joined': json_data['date_joined'],
+                        'mineral_extracted': json_data['mineral_extracted'],
+                        'launch_date': json_data['launch_date'],
+                        'user': json_data['user']
+                    }
+
+                async with session.patch(f'https://toyback.onrender.com/toycoin/{ref_id}/', json=refdata) as response:
+                    response.raise_for_status()
+
+        except aiohttp.ClientResponseError as http_err:
+            print(f'HTTP error occurred: {http_err}')
+        except aiohttp.ClientError as req_err:
+            print(f'Request exception: {req_err}')
+        except ValueError as json_err:
+            print(f'JSON error: {json_err}')
+
+    data = {
         'first_name': user.first_name,
         'username': user.username,
         'last_name': user.last_name,
         'full_name': user.full_name,
         'telegram_id': user.id,
-        'language_code': user.language_code, 
-        'last_active': current_time,
-        'referrer':referrer
+        'language_code': user.language_code,
+        'referrer': referrer,
+        'last_active': current_time  # Adding last active time to the data
     }
-    
-    get_url = f'https://toyback.onrender.com/telegram/all/{user.id}/'
-    
-    url = f'https://toyback.onrender.com/telegram/all/'
-    
 
-    # Send a greeting message with the user's name and a description
+    get_url = f'https://toyback.onrender.com/telegram/all/{user.id}/'
+    url = f'https://toyback.onrender.com/telegram/all/'
+
     greeting_message = f"Hello, {username}! 👋 Welcome to our bot!"
     welcome_back_message = f"Welcome Back, {username}! 👋👋 "
     description = "Here's what you can do here:"
     welcome_back_description = "Continue to claim now."
-    # await context.bot.send_message(chat_id=update.effective_chat.id, 
-    #                                text=f"{greeting_message}\n\n{description}",
-    #                                parse_mode=ParseMode.MARKDOWN)
     front_url = f'https://toycoin.netlify.app/home/{user.id}'
 
-    front_response = requests.get(front_url)
-    # print(f"front_response: {front_response}") 
-
     keyboard = [
-        # [
-        #     InlineKeyboardButton("Option 1", callback_data="1"),
-        #     InlineKeyboardButton("Option 2", callback_data="2"),
-        # ],
         [
-            # Replace 'https://your_mini_app_url.com' with the actual URL of your Mini App
             InlineKeyboardButton("MINE TOY", web_app=WebAppInfo(url=f"https://toycoin.netlify.app/home/{user.id}")),
         ],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send the inline keyboard in a new message
-    # await update.message.reply_text("Please choose:", reply_markup=reply_markup)
-    
-
     try:
-        response = requests.get(get_url, json=data)
-        if response.status_code == 200:
-            await context.bot.send_message(chat_id=update.effective_chat.id, 
-                               text=f"{welcome_back_message}\n\n{welcome_back_description}")
-            
-            await context.bot.send_message(chat_id=update.effective_chat.id, 
-                                   text="Continue by clicking on MINE TOY", 
-                                   reply_markup=reply_markup)
-        elif response.status_code == 404: 
-            new_response = requests.post(url, json=data)
-            if new_response.status_code == 201:
-                await context.bot.send_message(chat_id=update.effective_chat.id, 
-                               text=f"{greeting_message}\n\n{description}")
-                
-                await context.bot.send_message(chat_id=update.effective_chat.id, 
-                                   text="Please choose an option:", 
-                                   reply_markup=reply_markup)
-            # await context.bot.send_message(chat_id=update.effective_chat.id, text="Pls Click start again")
-    except requests.exceptions.RequestException as e:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred has occured, pls reload the bot")
-        # print(e)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(get_url) as response:
+                if response.status == 200:
+                    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                   text=f"{welcome_back_message}\n\n{welcome_back_description}")
 
+                    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                   text="Continue by clicking on MINE TOY",
+                                                   reply_markup=reply_markup)
+                elif response.status == 404:
+                    async with session.post(url, json=data) as new_response:
+                        if new_response.status == 201:
+                            new_user_data = await new_response.json()
+                            print(f'New user data: {new_user_data}')
+
+                            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                           text=f"{greeting_message}\n\n{description}")
+
+                            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                           text="Please choose an option:",
+                                                           reply_markup=reply_markup)
+    except aiohttp.ClientError as e:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred, please reload the bot")
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
