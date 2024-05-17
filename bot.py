@@ -7,10 +7,11 @@ Basic example for a bot that uses inline keyboards. For an in-depth explanation,
  https://github.com/python-telegram-bot/python-telegram-bot/wiki/InlineKeyboard-Example.
 """
 import logging
-
+from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.constants import ParseMode
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, CallbackContext
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, CallbackContext, MessageHandler, filters
+
 import requests
 
   
@@ -63,7 +64,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             refdata={
                 'id': json_data['id'],
                 'name': json_data['name'],
-                'quantity_mined': float(json_data['quantity_mined']) + 666.00,
+                'quantity_mined': float(json_data['quantity_mined']) + 1000.00,
                 'time_clicked': json_data['time_clicked'],
                 'first_click': json_data['first_click'],
                 'date_joined': json_data['date_joined'],
@@ -94,6 +95,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
     # Create or update the user in the database
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     data={
         'first_name': user.first_name,
@@ -101,7 +103,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         'last_name': user.last_name,
         'full_name': user.full_name,
         'telegram_id': user.id,
-        'language_code': user.language_code,  
+        'language_code': user.language_code, 
+        'last_active': current_time,
         'referrer':referrer
     }
     
@@ -178,7 +181,39 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Displays info on how to use the bot."""
+    print("help just now")
     await update.message.reply_text("Use /start to test this bot.")
+
+
+async def welcome_new_member(update: Update, context: CallbackContext) -> None:
+    """Sends a welcome message to new members of a group."""
+    print("New member just joined")
+    logger.info("New member just joined")
+    user = update.effective_user
+    user_id = user.id
+    print(f"user: {user}")
+    previous_data = requests.get(f'https://toyback.onrender.com/toycoin/{user_id}')
+    json_data = previous_data.json()
+    newdata={
+                'id': json_data['id'],
+                'name': json_data['name'],
+                'quantity_mined': float(json_data['quantity_mined']) + 333.00,
+                'time_clicked': json_data['time_clicked'],
+                'first_click': json_data['first_click'],
+                'date_joined': json_data['date_joined'],
+                'mineral_extracted': json_data['mineral_extracted'],
+                'launch_date': json_data['launch_date'],
+                'user': json_data['user']
+            }
+            
+    response = requests.patch(f'https://toyback.onrender.com/toycoin/{user_id}/', json=newdata)
+    # for member in update.message.new_chat_members:
+    #     # Check if the new member is not the bot itself
+    #     logger.info(f"Member: {member.full_name}, ID: {member.id}")
+    #     if not member.is_bot:
+    #         welcome_text = f"Welcome {member.full_name} to the group!"
+    #         await context.bot.send_message(chat_id=update.effective_chat.id, text=welcome_text)
+
 
 
 def main() -> None:
@@ -194,6 +229,8 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES, timeout=30)  # Timeout set to 30 seconds
