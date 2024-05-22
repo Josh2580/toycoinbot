@@ -78,6 +78,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         except ValueError as json_err:
             print(f'JSON error: {json_err}')
 
+
     data = {
         'first_name': user.first_name,
         'username': user.username,
@@ -149,7 +150,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Use /start to test this bot.")
 
 
-
 async def welcome_new_member(update: Update, context: CallbackContext) -> None:
     """Sends a welcome message to new members of a group."""
     print("Chat ID: -1002124838209")
@@ -166,35 +166,14 @@ async def welcome_new_member(update: Update, context: CallbackContext) -> None:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(f'https://toyback.onrender.com/telegram/all/{user_id}/') as response:
-                #Checking If User Telegram Id is on the Database
                 if response.status == 200:
                     print(f'User {user_id} exist in Toy Database')
-                    add_user_task = {
+                    user_data = {
                         'telegram_id': user_id,
                     }
-                    #Adding New User Data
-                    async with session.patch(f'https://toyback.onrender.com/task/all/{chat_id}/', json=add_user_task) as j_response:
-                        if j_response.status == 200:
-                            previous_task_data = await j_response.json() # JSON previous task quantity
-                            print(f'joined successfully {previous_task_data}')
-
-                            # Fetching User Previous Toycoin Data
-                            async with session.get(f'https://toyback.onrender.com/toycoin/{user_id}') as previous_data:
-                                json_data = await previous_data.json()
-                                print(f'Fetching User Previous Toycoin Data {json_data}')
-
-                                #Adding Task quantity to the Toycoin
-                                newdata={
-                                    'quantity_mined': float(json_data['quantity_mined']) + previous_task_data['quantity'], #Adding Task quantity to the Toycoin
-                                }
-
-                                # Patch Request to add coin to the user
-                                async with session.patch(f'https://toyback.onrender.com/toycoin/{user_id}/', json=newdata) as new_response:
-                                    new_response_data = await new_response.json()
-                                    print(f'Value added Successfully {new_response_data}')
-                    
-                    
-                    
+                    async with session.patch(f'https://toyback.onrender.com/task/all/{chat_id}/', json=user_data) as j_response:
+                        a=j_response.json()
+                        print(f'joined successfully {a}')
 
 
     except aiohttp.ClientResponseError as http_err:
@@ -205,6 +184,12 @@ async def welcome_new_member(update: Update, context: CallbackContext) -> None:
         print(f'JSON error: {json_err}')
 
 
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.message.chat_id
+    chat_title = update.message.chat.title
+    print(f"Echo Chat ID: {chat_id}, Chat Title: {chat_title}")
+    # await update.message.reply_text(f"Echo Chat ID: {chat_id}")
 
 
 
@@ -222,6 +207,8 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
 
 
     # Run the bot until the user presses Ctrl-C
