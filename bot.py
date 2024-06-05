@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.constants import ParseMode
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, CallbackContext, MessageHandler, filters
+from telegram.ext import Application, ChatMemberHandler, CallbackQueryHandler, CommandHandler, ContextTypes, CallbackContext, MessageHandler, filters
 import requests
 import aiohttp
 
@@ -150,18 +150,20 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 
-async def welcome_new_member(update: Update, context: CallbackContext) -> None:
+
+async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends a welcome message to new members of a group."""
-    print("Chat ID: -1002124838209")
-    print("Welcome New member just joined")
-    logger.info("Welcome New member just joined")
+
+    # print("2nd Welcome New member just joined")
     user = update.effective_user
     user_id = user.id
 
-    print(f"Welcome user: {user}")
-    chat_id = update.message.chat_id
-    chat_title = update.message.chat.title
-    print(f"Chat ID: {chat_id}, Chat Title: {chat_title}")
+    # print(f"2nd Welcome user: {user}")
+    # print(f"2nd chatting chatoto {update.effective_chat}")
+    chat_id = update.effective_chat.id
+    chat_title = update.effective_chat.title
+    chat_type = update.effective_chat.type
+    print(f"2nd Chat ID: {chat_id}, Chat Title: {chat_title}, Chat Type: {chat_type}")
  
     try:
         async with aiohttp.ClientSession() as session:
@@ -172,29 +174,35 @@ async def welcome_new_member(update: Update, context: CallbackContext) -> None:
                     add_user_task = {
                         'telegram_id': user_id,
                     }
+                    telegram_database_response = await response.json() 
+                    telegram_database_id = telegram_database_response["id"]
                     #Adding New User Data
-                    async with session.patch(f'https://toyback.onrender.com/task/all/{chat_id}/', json=add_user_task) as j_response:
-                        if j_response.status == 200:
-                            previous_task_data = await j_response.json() # JSON previous task quantity
-                            print(f'joined successfully {previous_task_data}')
+                    async with session.get(f'https://toyback.onrender.com/task/all/{chat_id}/') as get_task_response:
+                        if get_task_response.status == 200:
+                            get_previous_task_data = await get_task_response.json() 
+                            if telegram_database_id not in get_previous_task_data["user"]:
+                                async with session.patch(f'https://toyback.onrender.com/task/all/{chat_id}/', json=add_user_task) as j_response:
+                                    if j_response.status == 200:
+                                        previous_task_data = await j_response.json() # JSON previous task quantity
+                                        # print(f'joined successfully {previous_task_data}')
 
-                            # Fetching User Previous Toycoin Data
-                            async with session.get(f'https://toyback.onrender.com/toycoin/{user_id}') as previous_data:
-                                json_data = await previous_data.json()
-                                print(f'Fetching User Previous Toycoin Data {json_data}')
+                                        # Fetching User Previous Toycoin Data
+                                        async with session.get(f'https://toyback.onrender.com/toycoin/{user_id}') as previous_data:
+                                            json_data = await previous_data.json()
+                                            print(f'Fetching User Previous Toycoin Data {json_data}')
 
-                                #Adding Task quantity to the Toycoin
-                                newdata={
-                                    'quantity_mined': float(json_data['quantity_mined']) + previous_task_data['quantity'], #Adding Task quantity to the Toycoin
-                                }
+                                            #Adding Task quantity to the Toycoin
+                                            newdata={
+                                                'quantity_mined': float(json_data['quantity_mined']) + previous_task_data['quantity'], #Adding Task quantity to the Toycoin
+                                            }
 
-                                # Patch Request to add coin to the user
-                                async with session.patch(f'https://toyback.onrender.com/toycoin/{user_id}/', json=newdata) as new_response:
-                                    new_response_data = await new_response.json()
-                                    print(f'Value added Successfully {new_response_data}')
-                    
-                    
-                    
+                                            # Patch Request to add coin to the user
+                                            async with session.patch(f'https://toyback.onrender.com/toycoin/{user_id}/', json=newdata) as new_response:
+                                                new_response_data = await new_response.json()
+                                                print(f'Value added Successfully {new_response_data}')
+                                
+                                
+                                
 
 
     except aiohttp.ClientResponseError as http_err:
@@ -203,9 +211,7 @@ async def welcome_new_member(update: Update, context: CallbackContext) -> None:
         print(f'Request exception: {req_err}')
     except ValueError as json_err:
         print(f'JSON error: {json_err}')
-
-
-
+    
 
 
 def main() -> None:
@@ -221,7 +227,10 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+    # application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+    # Handle members joining/leaving chats.
+    application.add_handler(ChatMemberHandler(welcome_new_member, ChatMemberHandler.CHAT_MEMBER))
+
 
 
     # Run the bot until the user presses Ctrl-C
@@ -231,4 +240,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
